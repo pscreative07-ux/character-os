@@ -1,0 +1,25 @@
+{
+  "name": "character-os",
+  "version": "0.1.0",
+  "description": "A system for preserving character identity across generative processes — visual, narrative, and behavioral.",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=18"
+  },
+  "exports": {
+    ".": "./dist/api/index.js",
+    "./kernel": "./dist/kernel/index.js",
+    "./sdk": "./dist/sdk/index.js",
+    "./connectors": "./dist/generation-connectors/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/tests/*.test.js\"",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.5.0"
+  }
+}
