@@ -27,8 +27,11 @@ def get_pipeline():
                 # (SD1.x/2.x do; SDXL does not ship one at all).
                 if hasattr(pipe, "safety_checker"):
                     pipe.safety_checker = None
-                pipe.to(config.DEVICE)
                 pipe.enable_attention_slicing()
+                # CPU offload instead of pipe.to(device): keeps peak VRAM low
+                # enough for 8GB cards (accelerate manages device placement,
+                # so don't call .to() as well).
+                pipe.enable_model_cpu_offload()
                 _pipe = pipe
     return _pipe
 
@@ -45,7 +48,8 @@ def generate_image(
     pipe = get_pipeline()
     generator = None
     if seed is not None:
-        generator = torch.Generator(device=config.DEVICE).manual_seed(seed)
+        # CPU generator: matches enable_model_cpu_offload's device handling.
+        generator = torch.Generator(device="cpu").manual_seed(seed)
 
     result = pipe(
         prompt=prompt,

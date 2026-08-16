@@ -7,8 +7,6 @@ UPLOAD_DIR = Path(os.environ.get("LOCAL_STUDIO_UPLOAD_DIR", BASE_DIR / "uploads"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-DEVICE = os.environ.get("LOCAL_STUDIO_DEVICE", "cuda")
-
 # Image (text-to-image)
 IMAGE_MODEL_ID = os.environ.get(
     "LOCAL_STUDIO_IMAGE_MODEL", "stabilityai/stable-diffusion-xl-base-1.0"
