@@ -10,7 +10,7 @@ if (-not (Test-Path ".venv")) {
 }
 
 . .\.venv\Scripts\Activate.ps1
-pip install --upgrade pip -q
+python -m pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
 uvicorn backend.app:app --host $HostAddr --port $Port
