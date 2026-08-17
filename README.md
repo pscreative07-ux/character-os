@@ -24,5 +24,11 @@ constitutional definition of the system.
 | `/sdk` | Client libraries / integration tools |
 | `/generation-connectors` | Adapters to generative backends (e.g. image/video models) |
 
+### Generation connectors
+
+| Connector | Purpose |
+|---|---|
+| [`/generation-connectors/local-studio`](./generation-connectors/local-studio) | Self-hosted image/video generation (SDXL, AnimateDiff, Stable Video Diffusion) running entirely on local hardware |
+
 ## Governing hierarchy
 
