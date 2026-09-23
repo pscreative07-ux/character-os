@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>Character OS - Local Studio</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .tabs button { padding: 0.5rem 1rem; cursor: pointer; }
+  .tabs button.active { font-weight: bold; border-bottom: 2px solid currentColor; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; margin-bottom: 1rem; }
+  label { display: block; margin-top: 0.6rem; font-size: 0.85rem; }
+  input, textarea, select { width: 100%; box-sizing: border-box; padding: 0.4rem; margin-top: 0.2rem; }
+  textarea { min-height: 4rem; }
+  .row { display: flex; gap: 0.6rem; }
+  .row > div { flex: 1; }
+  button.submit { margin-top: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
+  #status { margin-top: 1rem; font-size: 0.9rem; }
+  #result img, #result video { max-width: 100%; border-radius: 8px; margin-top: 1rem; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>Character OS - Local Studio</h1>
+<p style="opacity:0.7; font-size:0.85rem;">Geração 100% local — os modelos rodam na sua GPU, nenhuma chamada sai desta máquina.</p>
+
+<div class="tabs">
+  <button id="tab-image" class="active">Imagem</button>
+  <button id="tab-video">Vídeo</button>
+</div>
+
+<form id="form-image">
+  <fieldset>
+    <label>Prompt<textarea name="prompt" required></textarea></label>
+    <label>Negative prompt<textarea name="negative_prompt"></textarea></label>
+    <div class="row">
+      <div><label>Steps<input type="number" name="steps" value="30"></label></div>
+      <div><label>Guidance<input type="number" step="0.1" name="guidance_scale" value="7.0"></label></div>
+    </div>
+    <div class="row">
+      <div><label>Width<input type="number" name="width" value="1024" step="64"></label></div>
+      <div><label>Height<input type="number" name="height" value="1024" step="64"></label></div>
+    </div>
+    <label>Seed (opcional)<input type="number" name="seed"></label>
+  </fieldset>
+  <button class="submit" type="submit">Gerar imagem</button>
+</form>
+
+<form id="form-video" class="hidden">
+  <fieldset>
+    <label>Modo
+      <select name="mode">
+        <option value="text2vid">Texto → vídeo (AnimateDiff)</option>
+        <option value="img2vid">Imagem → vídeo (Stable Video Diffusion)</option>
+      </select>
+    </label>
+    <label>Prompt (texto→vídeo, ou base para gerar o frame inicial)<textarea name="prompt"></textarea></label>
+    <label>Negative prompt<textarea name="negative_prompt"></textarea></label>
+    <label class="img2vid-only hidden">Imagem inicial (opcional se preencher o prompt)<input type="file" name="source_image" accept="image/*"></label>
+    <div class="row">
+      <div><label>Steps<input type="number" name="steps" value="25"></label></div>
+      <div><label>Guidance<input type="number" step="0.1" name="guidance_scale" value="7.5"></label></div>
+    </div>
+    <div class="row">
+      <div><label>Frames<input type="number" name="num_frames" value="16"></label></div>
+      <div><label>FPS<input type="number" name="fps" value="8"></label></div>
+    </div>
+    <label>Seed (opcional)<input type="number" name="seed"></label>
+  </fieldset>
+  <button class="submit" type="submit">Gerar vídeo</button>
+</form>
+
+<div id="status"></div>
+<div id="result"></div>
+
+<script>
+const tabImage = document.getElementById('tab-image');
+const tabVideo = document.getElementById('tab-video');
+const formImage = document.getElementById('form-image');
+const formVideo = document.getElementById('form-video');
+const statusEl = document.getElementById('status');
+const resultEl = document.getElementById('result');
+const modeSelect = formVideo.querySelector('select[name=mode]');
+const img2vidField = formVideo.querySelector('.img2vid-only');
+
+tabImage.onclick = () => { tabImage.classList.add('active'); tabVideo.classList.remove('active'); formImage.classList.remove('hidden'); formVideo.classList.add('hidden'); };
+tabVideo.onclick = () => { tabVideo.classList.add('active'); tabImage.classList.remove('active'); formVideo.classList.remove('hidden'); formImage.classList.add('hidden'); };
+modeSelect.onchange = () => { img2vidField.classList.toggle('hidden', modeSelect.value !== 'img2vid'); };
+
+function setStatus(text) { statusEl.textContent = text; }
+
+async function pollJob(jobId, kind) {
+  setStatus('Job ' + jobId + ': na fila...');
+  while (true) {
+    await new Promise(r => setTimeout(r, 2000));
+    const res = await fetch('/api/jobs/' + jobId);
+    const job = await res.json();
+    if (job.status === 'running') setStatus('Job ' + jobId + ': gerando...');
+    else if (job.status === 'queued') setStatus('Job ' + jobId + ': na fila...');
+    else if (job.status === 'done') {
+      setStatus('Job ' + jobId + ': concluído.');
+      resultEl.innerHTML = kind === 'image'
+        ? '<img src="' + job.url + '">'
+        : '<video src="' + job.url + '" controls autoplay loop></video>';
+      return;
+    } else if (job.status === 'failed') {
+      setStatus('Job ' + jobId + ': falhou. ' + (job.error || ''));
+      return;
+    }
+  }
+}
+
+formImage.onsubmit = async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(formImage).entries());
+  data.steps = Number(data.steps);
+  data.guidance_scale = Number(data.guidance_scale);
+  data.width = Number(data.width);
+  data.height = Number(data.height);
+  data.seed = data.seed ? Number(data.seed) : null;
+  const res = await fetch('/api/generate/image', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+  const job = await res.json();
+  if (!res.ok) { setStatus('Erro: ' + JSON.stringify(job)); return; }
+  pollJob(job.id, 'image');
+};
+
+formVideo.onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(formVideo);
+  const payload = {
+    mode: fd.get('mode'),
+    prompt: fd.get('prompt') || '',
+    negative_prompt: fd.get('negative_prompt') || '',
+    steps: Number(fd.get('steps')),
+    guidance_scale: Number(fd.get('guidance_scale')),
+    num_frames: Number(fd.get('num_frames')),
+    fps: Number(fd.get('fps')),
+    seed: fd.get('seed') ? Number(fd.get('seed')) : null,
+  };
+  const file = fd.get('source_image');
+  if (payload.mode === 'img2vid' && file && file.size > 0) {
+    setStatus('Enviando imagem...');
+    const uploadFd = new FormData();
+    uploadFd.append('file', file);
+    const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadFd });
+    const uploadJson = await uploadRes.json();
+    payload.source_upload_id = uploadJson.upload_id;
+  }
+  const res = await fetch('/api/generate/video', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+  const job = await res.json();
+  if (!res.ok) { setStatus('Erro: ' + JSON.stringify(job)); return; }
+  pollJob(job.id, 'video');
+};
+</script>
+</body>
+</html>
