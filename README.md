@@ -26,3 +26,16 @@ constitutional definition of the system.
 
 ## Governing hierarchy
 
+## Development
+
+The kernel, API, SDK, and reference connector are written in TypeScript
+with no runtime dependencies.
+
+```sh
+npm install
+npm test    # builds and runs the suite (Node >= 18)
+```
+
+See [`docs/architecture/overview.md`](./docs/architecture/overview.md)
+for how the layers fit together.
+
