@@ -23,6 +23,7 @@ constitutional definition of the system.
 | `/api` | Public interface layer |
 | `/sdk` | Client libraries / integration tools |
 | `/generation-connectors` | Adapters to generative backends (e.g. image/video models) |
+| `/studio` | Reference implementation: a Next.js app for identity-preserving character image generation. See [`studio/README.md`](./studio/README.md). |
 
 ## Governing hierarchy
 
